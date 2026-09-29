@@ -1,202 +1,217 @@
-// #include <Arduino.h>
-// #include <Adafruit_NeoPixel.h>
-// #include <WiFi.h>
-// #include <ESPmDNS.h>
-// #include <HTTPClient.h>
-// #include <ArduinoJson.h>
-// #include <passwords.h>
+#include <Arduino.h>
+#include <Adafruit_NeoPixel.h>
+#include <WiFi.h>
+#include <ESPmDNS.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <passwords.h>
 
 
-// #ifdef _AVR_
-//   #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
-// #endif
+#ifdef _AVR_
+  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
+#endif
 
-// #define PIN            4
-// #define NUMPIXELS      4
+#define PIN            4
+#define NUMPIXELS      4
 
-// JsonDocument printer;
+JsonDocument printer;
 
-// Adafruit_NeoPixel indicator(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel indicator(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
-// struct PrinterStatus {
-//   String status;
-// };
+struct PrinterStatus { 
+  String status;
+};
 
-// PrinterStatus printer1;
-// PrinterStatus printer2; 
-// PrinterStatus printer3;
-// PrinterStatus XL;
+PrinterStatus printer1;
+PrinterStatus printer2; 
+PrinterStatus printer3;
+PrinterStatus XL;
 
-// const uint32_t PRINTING = indicator.Color(255, 255, 0); // Yellow
-// const uint32_t ERROR    = indicator.Color(255, 0, 0);   // Red
-// const uint32_t FINISHED = indicator.Color(0, 255, 0);   // Green
-// const uint32_t IDLE     = indicator.Color(0, 0, 0);    // Off
-// // const unit32_t starting = indicator.Color();
+const uint32_t RED = indicator.Color(255, 0, 0);   // Red
+const uint32_t YELLOW = indicator.Color(255, 150, 0); // Yellow
+const uint32_t GREEN = indicator.Color(0, 255, 0);   // Green
 
-// // PrinterStatus getPrinterStatus(const char* ip, const char* apiKey) {
-// //   PrinterStatus printState;
-// //   HTTPClient http;
-// //   http.begin("http://" + String(ip) + "/api/v1/status");
-// //   http.setAuthorization(userName, apiKey);
-// //   int httpCode = http.GET();
-// //   String response = http.getString();
+uint32_t setUps[] = {
+    RED, YELLOW, GREEN
+};
 
-// //   JsonDocument data;
-// //   deserializeJson(data, response);
-// //   printState.status = data["printer"]["state"].as<String>();
-
-// //   return printState;
-// // }
+const uint32_t PRINTING = indicator.Color(255, 150, 0); // Yellow
+const uint32_t ERROR    = indicator.Color(255, 0, 0);   // Red
+const uint32_t FINISHED = indicator.Color(0, 255, 0);   // Green
+const uint32_t IDLE     = indicator.Color(0, 0, 0);    // Off
+const uint32_t PRINTBUSY     = indicator.Color(0, 0, 255);    // Blue
+const uint32_t ATTENTION     = indicator.Color(250, 40, 0);    // Orange
 
 
-// PrinterStatus getPrinterStatus(const char* ip, const char* apiKey) {
 
-//   PrinterStatus printState;
-//   HTTPClient http;
-//   String url = "http://" + String(ip) + "/api/v1/status";
+PrinterStatus getPrinterStatus(const char* ip, const char* apiKey) {
 
-//   Serial.print("Requesting: ");
-//   Serial.println(url);
-//   http.begin(url);
+  PrinterStatus printState;
+  HTTPClient http;
+  String url = "http://" + String(ip) + "/api/v1/status";
+
+  Serial.print("Requesting: ");
+  Serial.println(url);
+  http.begin(url);
   
-//   http.addHeader("X-Api-Key", apiKey);
-//   int httpCode = http.GET();
+  http.addHeader("X-Api-Key", apiKey);
+  int httpCode = http.GET();
 
 //   Serial.print("HTTP Code: ");
 //   Serial.println(httpCode);
 
-//   String response = http.getString();
+  String response = http.getString();
 
 //   Serial.println("Response:");
 //   Serial.println(response);
 
-//   JsonDocument data;
+  JsonDocument data;
 
-//   DeserializationError error = deserializeJson(data, response);
+  DeserializationError error = deserializeJson(data, response);
 
 //   if (error) {
 //     Serial.print("JSON Error: ");
 //     Serial.println(error.c_str());
 //   }
 
-//   printState.status = data["printer"]["state"].as<String>();
+  printState.status = data["printer"]["state"].as<String>();
 
 //   Serial.print("Parsed state: ");
 //   Serial.println(printState.status);
 
-//   http.end();
+  http.end();
 
-//   return printState;
-// }
-
-
+  return printState;
+}
 
 
-// uint32_t getStatusColor(String status) {
-//   if(status == "PRINTING")
-//     return PRINTING;
-//   else if(status == "ERROR")
-//     return ERROR;
-//   else if(status == "FINISHED")
-//     return FINISHED;
-//   else if(status == "IDLE")
-//     return IDLE;
-//   else
-//     return IDLE;
 
-// }
 
-// void setup() {
+uint32_t getStatusColor(String status) {
+  if(status == "PRINTING")
+    return PRINTING;
+  else if(status == "ERROR")
+    return ERROR;
+  else if(status == "FINISHED")
+    return FINISHED;
+  else if(status == "IDLE")
+    return IDLE;
+  else if(status == "BUSY" || "READY")
+    return PRINTBUSY;
+  else if(status == "ATTENTION")
+    return ATTENTION;
+  else
+    return IDLE;
+
+}
+
+void setup() {
 //   Serial.begin(115200);
-//   WiFi.begin("BYUI_Visitor", "");
+
   
-//   while (WiFi.status() != WL_CONNECTED) {
-//     delay(500);
-//     Serial.print(".");
-//   }
+  WiFi.begin("BYUI_Visitor", "");
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    // Serial.print(".");
+  }
   
 //   Serial.println("");
 //   Serial.println("WiFi connected!");
 //   Serial.print("IP address: ");
 //   Serial.println(WiFi.localIP());
 
-//   indicator.begin(); // This initializes the NeoPixel library.
-//   indicator.clear(); // This sets all the pixels to 'off'
-// }
+  indicator.begin(); // This initializes the NeoPixel library.
+  indicator.clear(); // This sets all the pixels to 'off'
 
-// void loop() {
-//   delay(5000);
-//   Serial.println("Printer 1 status wait: ");
-//   delay(1000);
-//   printer1 = getPrinterStatus(ip1, API_KEY1);
-//   printer2 = getPrinterStatus(ip2, API_KEY2);
-//   printer3 = getPrinterStatus(ip3, API_KEY3);
-//   XL       = getPrinterStatus(ipXL, API_KEYXL);
+  for(int i = 0; i < 3; i++)
+  {
+    indicator.fill();
+  }
 
-//   // indicator.setPixelColor(0, getStatusColor(printer1.status));
-//   // indicator.setPixelColor(1, getStatusColor(printer2.status));
-//   // indicator.setPixelColor(2, getStatusColor(printer3.status));
-//   // indicator.setPixelColor(3, getStatusColor(XL.status));
-
-//   Serial.println(printer1.status);
-//   delay(5000);
-// }
-
-
-#include <Arduino.h>
-#include <WiFi.h>
-#include <ESPmDNS.h>
-
-const char* WIFI_SSID = "BYUI_Visitor";
-const char* WIFI_PASSWORD = "";
-
-const char* PRINTER_HOSTNAME = "prusa-mk4-1";
-
-void setup() {
-
-    Serial.begin(115200);
-
-    Serial.println("Connecting to WiFi...");
-
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-
-    Serial.println();
-    Serial.println("WiFi connected!");
-
-    Serial.print("ESP32 IP: ");
-    Serial.println(WiFi.localIP());
-
-    Serial.println();
-    Serial.print("Looking for: ");
-    Serial.print(PRINTER_HOSTNAME);
-    Serial.println(".local");
-
-    if (!MDNS.begin("esp32-test")) {
-        Serial.println("mDNS initialization failed!");
-        return;
-    }
-
-    IPAddress printerIP = MDNS.queryHost(PRINTER_HOSTNAME);
-
-    if (printerIP == INADDR_NONE) {
-
-        Serial.println("Could not find printer.");
-
-    } else {
-
-        Serial.print("Printer found!");
-        Serial.print(" IP address: ");
-        Serial.println(printerIP);
-    }
+//   indicator.setPixelColor(0, 1, 2, 3)
 }
 
 void loop() {
+  delay(5000);
+//   Serial.println("Printer 1 status wait: ");
+  printer1 = getPrinterStatus(ip1, API_KEY1);
+  printer2 = getPrinterStatus(ip2, API_KEY2);
+  printer3 = getPrinterStatus(ip3, API_KEY3);
+  XL       = getPrinterStatus(ipXL, API_KEYXL);
+
+//   Serial.println(printer1.status);
+//   Serial.println(printer2.status);
+//   Serial.println(printer3.status);
+//   Serial.println(XL.status);
+
+  indicator.setPixelColor(0, getStatusColor(printer1.status));
+//   Serial.println(getStatusColor(printer1.status));
+  indicator.setPixelColor(1, getStatusColor(printer2.status));
+//   Serial.println(getStatusColor(printer2.status));
+  indicator.setPixelColor(2, getStatusColor(printer3.status));
+//   Serial.println(getStatusColor(printer3.status));
+  indicator.setPixelColor(3, getStatusColor(XL.status));
+//   Serial.println(getStatusColor(XL.status));
+
+  indicator.show();
 }
+
+
+// #include <Arduino.h>
+// #include <WiFi.h>
+// #include <ESPmDNS.h>
+
+// const char* WIFI_SSID = "BYUI_Visitor";
+// const char* WIFI_PASSWORD = "";
+
+// const char* PRINTER_HOSTNAME = "prusa-mk4-1";
+
+// void setup() {
+
+//     Serial.begin(115200);
+
+//     Serial.println("Connecting to WiFi...");
+
+//     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+//     while (WiFi.status() != WL_CONNECTED) {
+//         delay(500);
+//         Serial.print(".");
+//     }
+
+//     Serial.println();
+//     Serial.println("WiFi connected!");
+
+//     Serial.print("ESP32 IP: ");
+//     Serial.println(WiFi.localIP());
+
+//     Serial.println();
+//     Serial.print("Looking for: ");
+//     Serial.print(PRINTER_HOSTNAME);
+//     Serial.println(".local");
+
+//     if (!MDNS.begin("esp32-test")) {
+//         Serial.println("mDNS initialization failed!");
+//         return;
+//     }
+
+//     IPAddress printerIP = MDNS.queryHost(PRINTER_HOSTNAME);
+
+//     if (printerIP == INADDR_NONE) {
+
+//         Serial.println("Could not find printer.");
+
+//     } else {
+
+//         Serial.print("Printer found!");
+//         Serial.print(" IP address: ");
+//         Serial.println(printerIP);
+//     }
+// }
+
+// void loop() {
+// }
 
 //curl --url 'https://connect.prusa3d.com/app/printers/2e42c40c-3261-4a5d-9577-8c29b1775cfd' \
   -H 'accept: */*' \
@@ -216,4 +231,3 @@ void loop() {
   -H 'sec-fetch-site: same-origin' \
   -H 'sentry-trace: 864e2cb9f95243d1921492f4df6eadd0-957003dcedeb2049-0' \
   -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36'
-
