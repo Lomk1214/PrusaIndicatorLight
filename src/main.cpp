@@ -13,7 +13,7 @@
 
 #define PIN            4
 #define NUMPIXELS      4
-
+bool canConnect;
 JsonDocument printer;
 
 Adafruit_NeoPixel indicator(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -30,6 +30,8 @@ PrinterStatus XL;
 const uint32_t RED = indicator.Color(255, 0, 0);   // Red
 const uint32_t YELLOW = indicator.Color(255, 150, 0); // Yellow
 const uint32_t GREEN = indicator.Color(0, 255, 0);   // Green
+
+bool IPAddresses;
 
 uint32_t setUps[] = {
     RED, YELLOW, GREEN
@@ -123,17 +125,22 @@ void setup() {
 
   indicator.begin(); // This initializes the NeoPixel library.
   indicator.clear(); // This sets all the pixels to 'off'
-
-  for(int i = 0; i < 3; i++)
-  {
-    indicator.fill();
+  indicator.show(); // turn off lights
+  for(int i = 0; i < 3; i++) {
+    indicator.fill(setUps[i]);
+    indicator.show();
+    delay(1000);
+    indicator.fill(IDLE);
+    indicator.show();
+    delay(500);
   }
+
+  
 
 //   indicator.setPixelColor(0, 1, 2, 3)
 }
 
 void loop() {
-  delay(5000);
 //   Serial.println("Printer 1 status wait: ");
   printer1 = getPrinterStatus(ip1, API_KEY1);
   printer2 = getPrinterStatus(ip2, API_KEY2);
@@ -155,6 +162,7 @@ void loop() {
 //   Serial.println(getStatusColor(XL.status));
 
   indicator.show();
+  delay(5000);
 }
 
 
