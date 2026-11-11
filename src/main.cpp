@@ -13,8 +13,13 @@
 
 #define PIN            4
 #define NUMPIXELS      4
+
+int nonWorkingPrinters = 0;
 bool canConnect;
 JsonDocument printer;
+
+constexpr const char* check_Ip[] = {ip1, ip2, ip3, ipXL};
+constexpr const char* check_API_KEY[] = {API_KEY1, API_KEY2, API_KEY3, API_KEYXL};
 
 Adafruit_NeoPixel indicator(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
 
@@ -37,49 +42,50 @@ uint32_t setUps[] = {
     RED, YELLOW, GREEN
 };
 
-const uint32_t PRINTING = indicator.Color(255, 150, 0); // Yellow
-const uint32_t ERROR    = indicator.Color(255, 0, 0);   // Red
-const uint32_t FINISHED = indicator.Color(0, 255, 0);   // Green
-const uint32_t IDLE     = indicator.Color(0, 0, 0);    // Off
-const uint32_t PRINTBUSY     = indicator.Color(0, 0, 255);    // Blue
-const uint32_t ATTENTION     = indicator.Color(250, 40, 0);    // Orange
+const uint32_t PRINTING       = indicator.Color(255, 150, 0); // Yellow
+const uint32_t ERROR          = indicator.Color(255, 0, 0);   // Red
+const uint32_t FINISHED       = indicator.Color(0, 255, 0);   // Green
+const uint32_t IDLE           = indicator.Color(0, 0, 0);    // Off
+const uint32_t PRINTBUSY      = indicator.Color(0, 0, 255);    // Blue
+const uint32_t ATTENTION      = indicator.Color(250, 40, 0);    // Orange
+const uint32_t NOTCONNECTED   = indicator.Color(255, 255, 255);    // White
 
 
 
 PrinterStatus getPrinterStatus(const char* ip, const char* apiKey) {
 
-  PrinterStatus printState;
+  PrinterStatus printState; // create a PrinterStatus object to hold the current printer's status
   HTTPClient http;
-  String url = "http://" + String(ip) + "/api/v1/status";
+  String url = "http://" + String(ip) + "/api/v1/status"; // construct the URL for the printer's status endpoint
 
-  Serial.print("Requesting: ");
-  Serial.println(url);
+  // Serial.print("Requesting: ");
+  // Serial.println(url);
   http.begin(url);
   
-  http.addHeader("X-Api-Key", apiKey);
-  int httpCode = http.GET();
+  http.addHeader("X-Api-Key", apiKey); // add the API key header for authentication
+  int httpCode = http.GET(); // ask the printer for its current status
 
-//   Serial.print("HTTP Code: ");
-//   Serial.println(httpCode);
+  // Serial.print("HTTP Code: ");
+  // Serial.println(httpCode); 
 
-  String response = http.getString();
+  String response = http.getString(); // get the response from the printer's status endpoint
 
-//   Serial.println("Response:");
-//   Serial.println(response);
+  // Serial.println("Response:");
+  // Serial.println(response);
 
-  JsonDocument data;
+  JsonDocument data; // create a JSON document to hold the parsed response
 
   DeserializationError error = deserializeJson(data, response);
 
-//   if (error) {
-//     Serial.print("JSON Error: ");
-//     Serial.println(error.c_str());
-//   }
+  // if (error) {
+  //   Serial.print("JSON Error: ");
+  //   Serial.println(error.c_str());
+  // }
 
-  printState.status = data["printer"]["state"].as<String>();
+  printState.status = data["printer"]["state"].as<String>(); // extract the printer's state from the JSON response
 
-//   Serial.print("Parsed state: ");
-//   Serial.println(printState.status);
+  // Serial.print("Parsed state: ");
+  // Serial.println(printState.status);
 
   http.end();
 
@@ -89,7 +95,7 @@ PrinterStatus getPrinterStatus(const char* ip, const char* apiKey) {
 
 
 
-uint32_t getStatusColor(String status) {
+uint32_t getStatusColor(String status) { // set the color based on the printer's status
   if(status == "PRINTING")
     return PRINTING;
   else if(status == "ERROR")
@@ -98,44 +104,100 @@ uint32_t getStatusColor(String status) {
     return FINISHED;
   else if(status == "IDLE")
     return IDLE;
-  else if(status == "BUSY" || "READY")
+  else if(status == "BUSY" || status == "READY")
     return PRINTBUSY;
   else if(status == "ATTENTION")
     return ATTENTION;
   else
-    return IDLE;
+    return NOTCONNECTED;
 
 }
 
-void setup() {
-//   Serial.begin(115200);
+// Loops forever until indicator is turned off and IP Address is fixed 
+void connectionError() { // indicate a connection error for all printers
+  indicator.fill(IDLE);
+  indicator.show();
 
-  
+  // Come back to and add a check for a connection.
+  while(canConnect == false) { // if error, blink the error indicator for the specified printer
+    indicator.fill(ERROR); // Turn lights red
+    indicator.show();
+    delay(1000);
+    indicator.fill(0,0,0); // Turn lights off
+    indicator.show();
+    delay(1000);
+  }
+}
+
+void setup() {
+  // Serial.begin(115200);
+
+  PrinterStatus printStateCheck;
+  HTTPClient http; 
+
   WiFi.begin("BYUI_Visitor", "");
-  
-  while (WiFi.status() != WL_CONNECTED) {
+ 
+  while (WiFi.status() != WL_CONNECTED) { //CHOKE POINT HERE, COME BACK AND FIX LATER (Set a timeout for this loop)
     delay(500);
     // Serial.print(".");
   }
   
-//   Serial.println("");
-//   Serial.println("WiFi connected!");
-//   Serial.print("IP address: ");
-//   Serial.println(WiFi.localIP());
+  // Serial.println("");
+  // Serial.println("WiFi connected!");
+  // Serial.print("IP address: ");
+  // Serial.println(WiFi.localIP());
 
   indicator.begin(); // This initializes the NeoPixel library.
   indicator.clear(); // This sets all the pixels to 'off'
   indicator.show(); // turn off lights
-  for(int i = 0; i < 3; i++) {
+
+  for(int i = 0; i < 3; i++) { // startup light sequence
     indicator.fill(setUps[i]);
     indicator.show();
-    delay(1000);
-    indicator.fill(IDLE);
-    indicator.show();
     delay(500);
+    indicator.show();
   }
 
-  
+  indicator.fill(IDLE); // set all indicators to IDLE for ip check
+  indicator.show();
+  delay(1000);
+
+  indicator.fill(PRINTING);
+  indicator.show();
+
+  for(int a = 0; a <= 3; a++) // check the connection for each printer
+  {
+    String url = "http://" + String(check_Ip[a]) + "/api/v1/status";
+    // Serial.print("Requesting: ");
+    // Serial.println(url);
+    http.begin(url);
+
+    http.addHeader("X-Api-Key", check_API_KEY[a]);
+    
+    int httpCode = http.GET();
+
+    if (httpCode != HTTP_CODE_OK) { // HTTP_CODE_OK is the expected response code for a successful HTTP GET request (code 200)
+      http.end();
+      nonWorkingPrinters += 1;
+    }
+  }
+
+  if(nonWorkingPrinters == 4)
+    canConnect = false;
+    
+  else
+    canConnect = true;
+
+  for(int i = 0; i <= 4; i++){ // blink light green 4 times
+    indicator.fill(FINISHED);
+    indicator.show();
+    delay(250);
+    indicator.fill(IDLE);
+    indicator.show();
+    delay(250);
+  }
+
+
 
 //   indicator.setPixelColor(0, 1, 2, 3)
 }
